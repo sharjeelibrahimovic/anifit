@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Navbar from "../components/Navbar";
+import { supabase } from "../../lib/supabase";
 
 interface WorkoutEntry {
   id: number;
@@ -15,30 +16,41 @@ export default function Train() {
   const [sets, setSets] = useState("");
   const [reps, setReps] = useState("");
   const [workouts, setWorkouts] = useState<WorkoutEntry[]>([]);
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    const saved = localStorage.getItem("workouts");
-    if (saved) setWorkouts(JSON.parse(saved));
+    fetchWorkouts();
   }, []);
 
-  useEffect(() => {
-    localStorage.setItem("workouts", JSON.stringify(workouts));
-  }, [workouts]);
+  const fetchWorkouts = async () => {
+    const { data, error } = await supabase
+      .from("workouts")
+      .select("*")
+      .order("created_at", { ascending: false });
 
-  const handleSubmit = () => {
-    if (!exercise || !sets || !reps) return;
+    if (error) console.error(error);
+    else setWorkouts(data as WorkoutEntry[]);
+  };
 
-    const newWorkout: WorkoutEntry = {
-      id: Date.now(),
-      exercise,
-      sets: Number(sets),
-      reps: Number(reps),
-    };
+  const handleSubmit = async () => {
+    if (!exercise || !sets || !reps || submitting) return;
+    setSubmitting(true);
 
-    setWorkouts([...workouts, newWorkout]);
+    const { error } = await supabase
+      .from("workouts")
+      .insert([{ exercise, sets: Number(sets), reps: Number(reps) }]);
+
+    if (error) {
+      console.error(error);
+      setSubmitting(false);
+      return;
+    }
+
     setExercise("");
     setSets("");
     setReps("");
+    await fetchWorkouts();
+    setSubmitting(false);
   };
 
   return (
@@ -71,7 +83,8 @@ export default function Train() {
         />
         <button
           onClick={handleSubmit}
-          className="bg-pink-500 hover:bg-pink-600 rounded-lg px-4 py-2 font-semibold"
+          disabled={submitting}
+          className="bg-pink-500 hover:bg-pink-600 rounded-lg px-4 py-2 font-semibold disabled:opacity-50"
         >
           Add
         </button>

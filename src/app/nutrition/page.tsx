@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Navbar from "../components/Navbar";
+import { supabase } from "../../lib/supabase";
 
 interface MealEntry {
   id: number;
@@ -13,28 +14,40 @@ export default function Nutrition() {
   const [food, setFood] = useState("");
   const [calories, setCalories] = useState("");
   const [meals, setMeals] = useState<MealEntry[]>([]);
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    const saved = localStorage.getItem("meals");
-    if (saved) setMeals(JSON.parse(saved));
+    fetchMeals();
   }, []);
 
-  useEffect(() => {
-    localStorage.setItem("meals", JSON.stringify(meals));
-  }, [meals]);
+  const fetchMeals = async () => {
+    const { data, error } = await supabase
+      .from("meals")
+      .select("*")
+      .order("created_at", { ascending: false });
 
-  const handleSubmit = () => {
-    if (!food || !calories) return;
+    if (error) console.error(error);
+    else setMeals(data as MealEntry[]);
+  };
 
-    const newMeal: MealEntry = {
-      id: Date.now(),
-      food,
-      calories: Number(calories),
-    };
+  const handleSubmit = async () => {
+    if (!food || !calories || submitting) return;
+    setSubmitting(true);
 
-    setMeals([...meals, newMeal]);
+    const { error } = await supabase
+      .from("meals")
+      .insert([{ food, calories: Number(calories) }]);
+
+    if (error) {
+      console.error(error);
+      setSubmitting(false);
+      return;
+    }
+
     setFood("");
     setCalories("");
+    await fetchMeals();
+    setSubmitting(false);
   };
 
   const totalCalories = meals.reduce((sum, m) => sum + m.calories, 0);
@@ -62,7 +75,8 @@ export default function Nutrition() {
         />
         <button
           onClick={handleSubmit}
-          className="bg-pink-500 hover:bg-pink-600 rounded-lg px-4 py-2 font-semibold"
+          disabled={submitting}
+          className="bg-pink-500 hover:bg-pink-600 rounded-lg px-4 py-2 font-semibold disabled:opacity-50"
         >
           Add
         </button>
