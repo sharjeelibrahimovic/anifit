@@ -11,6 +11,7 @@ interface MealEntry {
   id: number;
   food: string;
   calories: number;
+  created_at: string;
 }
 
 interface WorkoutEntry {
@@ -18,38 +19,83 @@ interface WorkoutEntry {
   exercise: string;
   sets: number;
   reps: number;
+  created_at: string;
 }
 
 export default function Home() {
   const { user } = useAuth();
   const [meals, setMeals] = useState<MealEntry[]>([]);
   const [workouts, setWorkouts] = useState<WorkoutEntry[]>([]);
+  const [allMeals, setAllMeals] = useState<MealEntry[]>([]);
+  const [allWorkouts, setAllWorkouts] = useState<WorkoutEntry[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (user) fetchToday();
+    if (user) fetchData();
   }, [user]);
 
-  const fetchToday = async () => {
+  const fetchData = async () => {
     setLoading(true);
     const startOfDay = new Date();
     startOfDay.setHours(0, 0, 0, 0);
 
-    const { data: mealsData } = await supabase
+    const { data: mealsToday } = await supabase
       .from("meals")
       .select("*")
       .eq("user_id", user!.id)
       .gte("created_at", startOfDay.toISOString());
 
-    const { data: workoutsData } = await supabase
+    const { data: workoutsToday } = await supabase
       .from("workouts")
       .select("*")
       .eq("user_id", user!.id)
       .gte("created_at", startOfDay.toISOString());
 
-    setMeals(mealsData ?? []);
-    setWorkouts(workoutsData ?? []);
+    const { data: mealsAll } = await supabase
+      .from("meals")
+      .select("*")
+      .eq("user_id", user!.id);
+
+    const { data: workoutsAll } = await supabase
+      .from("workouts")
+      .select("*")
+      .eq("user_id", user!.id);
+
+    setMeals(mealsToday ?? []);
+    setWorkouts(workoutsToday ?? []);
+    setAllMeals(mealsAll ?? []);
+    setAllWorkouts(workoutsAll ?? []);
     setLoading(false);
+  };
+
+  const getStreak = () => {
+    let streak = 0;
+    const day = new Date();
+    day.setHours(0, 0, 0, 0);
+
+    while (true) {
+      const dayStart = new Date(day);
+      const dayEnd = new Date(day);
+      dayEnd.setHours(23, 59, 59, 999);
+
+      const hasMeal = allMeals.some((m) => {
+        const t = new Date(m.created_at).getTime();
+        return t >= dayStart.getTime() && t <= dayEnd.getTime();
+      });
+      const hasWorkout = allWorkouts.some((w) => {
+        const t = new Date(w.created_at).getTime();
+        return t >= dayStart.getTime() && t <= dayEnd.getTime();
+      });
+
+      if (hasMeal && hasWorkout) {
+        streak++;
+        day.setDate(day.getDate() - 1);
+      } else {
+        break;
+      }
+    }
+
+    return streak;
   };
 
   const totalCalories = meals.reduce((sum, m) => sum + m.calories, 0);
@@ -57,9 +103,10 @@ export default function Home() {
   const mealDone = meals.length > 0;
   const trainDone = workouts.length > 0;
   const questsDone = [mealDone, trainDone].filter(Boolean).length;
+  const streak = loading ? 0 : getStreak();
 
   const rank =
-    questsDone === 2 ? "S-Rank Today" : questsDone === 1 ? "C-Rank Today" : "E-Rank Today";
+    streak >= 7 ? "A-Rank" : streak >= 3 ? "C-Rank" : streak >= 1 ? "D-Rank" : "E-Rank";
 
   return (
     <main className="min-h-screen bg-black text-white flex flex-col items-center px-6 pb-24">
@@ -77,8 +124,8 @@ export default function Home() {
       ) : (
         <div className="w-full max-w-md flex flex-col gap-6">
           <div className="bg-zinc-900 border border-purple-500 rounded-2xl p-5 text-center">
-            <p className="text-pink-400 font-semibold">{rank}</p>
-            <p className="text-xs text-gray-400 mt-1">{questsDone}/2 quests completed</p>
+            <p className="text-pink-400 font-semibold">🔥 {streak}-Day Streak</p>
+            <p className="text-xs text-gray-400 mt-1">{rank} · {questsDone}/2 quests today</p>
           </div>
 
           <div className="bg-zinc-900 border border-purple-500 rounded-2xl p-5">
