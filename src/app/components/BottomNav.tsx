@@ -7,6 +7,8 @@ const tabs = [
   { href: "/", label: "Home" },
   { href: "/train", label: "Train" },
   { href: "/nutrition", label: "Fuel" },
+  { href: "/coach", label: "Coach" },
+  { href: "/profile", label: "Profile" },
 ];
 
 export default function BottomNav() {
@@ -18,7 +20,7 @@ export default function BottomNav() {
         <Link
           key={tab.href}
           href={tab.href}
-          className={`text-sm ${
+          className={`text-xs ${
             pathname === tab.href ? "text-pink-400 font-semibold" : "text-purple-300"
           }`}
         >
