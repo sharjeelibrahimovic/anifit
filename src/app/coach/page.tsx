@@ -93,6 +93,9 @@ export default function Coach() {
       <Navbar />
 
       <h1 className="text-3xl text-purple-400 mt-8 mb-6">AI Coach</h1>
+      <p className="text-xs text-gray-500 text-center max-w-xs mb-4">
+  AI-generated advice is not a substitute for professional medical or fitness guidance. Use your judgment.
+</p>
 
       {!user ? (
         <p className="text-gray-400">Please log in to chat with your coach.</p>
